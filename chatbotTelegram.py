@@ -151,7 +151,8 @@ def handler_token_sol(msg):
     
     results = db_solicitacao.search(Query().token == token)  
     if(results):
-        bot.send_message(chat_id, f"Aluno: {results['name']}, DRE:{results['dre']}, Status do pedido: {results['status']}.")
+        result = results[0]
+        bot.send_message(chat_id, f"""Aluno: {result['name']}\nDRE:{result['dre']}\nStatus do pedido: {result['status']}.""")
     else:
         bot.send_message(chat_id, "Não foi possível encontrar sua solicitação. Tente novamente.")
     
@@ -225,7 +226,8 @@ def handler_form_sol(msg):
             'pdf_caminho': file_path,
             'status': dic.em_andamento
         })
-        bot.send_message(chat_id, f"Solicitação enviada com sucesso para a comissão. Guarde seu token para futuras verificações. Token: {token}")
+        bot.send_message(chat_id, f"Solicitação enviada com sucesso para a comissão. Guarde seu token para futuras verificações.")
+        bot.send_message(chat_id, token)
     else:
         bot.send_message(chat_id, "Não foi possível enviar o seu formulário. Tente novamente.")
         os.remove(file_path)
@@ -238,17 +240,12 @@ def generateToken(solicitacao_data, chat_id):
     email = solicitacao_data[chat_id]['email']
     
     date = datetime.datetime.now()
-    
+    date_string = date.strftime('%Y-%m-%d %H:%M:%S')
     payload = {
     'dre': dre,                  # ID do usuário
     'name': name,          # Nome do usuário
     'email': email,                 # Função do usuário (exemplo)
-    'ano': date.year,
-    'mes': date.month,
-    'dia': date.day,
-    'hora':date.hour,
-    'minuto':date.min,
-    'segundo':date.second
+    'data': date_string          # Data formatada como string
 }
     #dev purposes only :)
     secret_key = 'l16heWJjmNeK1zQzLe8DDUyugDjNx1T3EnbliMY0sWA='
