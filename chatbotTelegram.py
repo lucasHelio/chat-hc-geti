@@ -1,8 +1,10 @@
 import os
 import glob
 import telebot
+import datetime
+import jwt
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-from tinydb import TinyDB
+from tinydb import TinyDB, Query
 from dotenv import load_dotenv
 
 import dictionary_response as dic
@@ -128,8 +130,31 @@ def opcao2(msg):
     solicitacao_data[chat_id] = {'step': 'waiting_dre'}
     bot.send_message(chat_id, dic.opcao1_solicitar_dre)
 
+
+@bot.message_handler(commands=["opcao3"])
+def opcao3(msg):
+    chat_id = msg.chat.id
+    solicitacao_data[chat_id] = {'step': 'waiting_token'}
+    bot.send_message(chat_id, dic.opcao3_solicitar_token)
+    
+    
+def check_write_token_sol(msg):
+    return solicitacao_data.get(msg.chat.id, {}).get('step') == 'waiting_token'
+
 def check_write_dre_sol(msg):
     return solicitacao_data.get(msg.chat.id, {}).get('step') == 'waiting_dre'
+
+@bot.message_handler(func=check_write_token_sol)
+def handler_token_sol(msg):
+    chat_id = msg.chat.id
+    token = msg.text
+    
+    results = db_solicitacao.search(Query().token == token)  
+    if(results):
+        bot.send_message(chat_id, f"Aluno: {results['name']}, DRE:{results['dre']}, Status do pedido: {results['status']}.")
+    else:
+        bot.send_message(chat_id, "Não foi possível encontrar sua solicitação. Tente novamente.")
+    
 
 @bot.message_handler(func=check_write_dre_sol)
 def handler_dre_sol(msg):
@@ -190,20 +215,47 @@ def handler_form_sol(msg):
     
     success = send_email_with_attachment(file_path, arquivos_comprovante, name, dre, email)
     if(success):
+        token = generateToken(solicitacao_data, chat_id)
         db_solicitacao.insert({
             'chat_id': chat_id,
+            'token': token,
             'dre': solicitacao_data[chat_id]['dre'],
             'name': solicitacao_data[chat_id]['name'],
             'email': solicitacao_data[chat_id]['email'],
             'pdf_caminho': file_path,
-            'status': 'ANDAMENTO'
+            'status': dic.em_andamento
         })
-        bot.send_message(chat_id, "Solicitação enviada com sucesso para a comissão. ")
+        bot.send_message(chat_id, f"Solicitação enviada com sucesso para a comissão. Guarde seu token para futuras verificações. Token: {token}")
     else:
-        bot.send_message(chat_id, "Não foi possível enviar o seu formulário. Tenten novamente.")
+        bot.send_message(chat_id, "Não foi possível enviar o seu formulário. Tente novamente.")
         os.remove(file_path)
 
     del solicitacao_data[chat_id]
+    
+def generateToken(solicitacao_data, chat_id):
+    dre = solicitacao_data[chat_id]['dre']
+    name = solicitacao_data[chat_id]['name']
+    email = solicitacao_data[chat_id]['email']
+    
+    date = datetime.datetime.now()
+    
+    payload = {
+    'dre': dre,                  # ID do usuário
+    'name': name,          # Nome do usuário
+    'email': email,                 # Função do usuário (exemplo)
+    'ano': date.year,
+    'mes': date.month,
+    'dia': date.day,
+    'hora':date.hour,
+    'minuto':date.min,
+    'segundo':date.second
+}
+    #dev purposes only :)
+    secret_key = 'l16heWJjmNeK1zQzLe8DDUyugDjNx1T3EnbliMY0sWA='
+
+    token = jwt.encode(payload, secret_key, algorithm='HS256')
+    
+    return token
 
 ### BEGIN SOLICITACAO INCLUSAO HORAS ###
 
@@ -216,4 +268,4 @@ def response(msg):
     bot.reply_to(msg, dic.saudacao)
 
 ## Manter o bot ativo no telegram
-bot.polling()
+bot.polling(timeout=60)

@@ -10,3 +10,11 @@ Escolha uma das opções para continuar (clique ou digite o comando):
 opcao1_solicitar_dre = '''
 Por favor, informe seu DRE:
 '''
+
+opcao3_solicitar_token = '''
+Por favor, informe o Token do pedido:
+'''
+
+em_andamento = "Em Andamento" 
+pedido_aprovado = 'Pedido Aprovado'
+pedido_recusado = 'Pedido Recusado' 
